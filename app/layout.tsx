@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Sora, DM_Sans, Geist } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastContainer } from "@/components/ui/Toast";
@@ -7,6 +7,18 @@ import { ToastContainer } from "@/components/ui/Toast";
 const geist = Geist({
   subsets: ["latin"],
   variable: "--font-geist",
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  weight: ["400", "600", "700"],
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm",
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -37,7 +49,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-             __html: `
+            __html: `
               try {
                 let theme = localStorage.getItem('theme');
                 if (!theme || theme === 'system') {
@@ -51,7 +63,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geist.variable} antialiased min-h-screen bg-background text-text`}>
+      <body className={`${geist.variable} ${sora.variable} ${dmSans.variable} antialiased min-h-screen bg-background text-text`}>
         <ThemeProvider>
           {children}
           <ToastContainer />

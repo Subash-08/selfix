@@ -1,0 +1,7 @@
+app/api/money/route.ts(101,22): error TS2352: Conversion of type 'IDayBalance & Required<{ _id: string | ObjectId; }> & { __v: number; }' to type 'Record<string, unknown> | null' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'IDayBalance & Required<{ _id: string | ObjectId; }> & { __v: number; }' is not comparable to type 'Record<string, unknown>'.
+    Index signature for type 'string' is missing in type 'IDayBalance & Required<{ _id: string | ObjectId; }> & { __v: number; }'.
+app/api/money/route.ts(145,44): error TS2345: Argument of type '(b: Record<string, unknown>) => { category: string; budget: number; spent: number; remaining: number; percentUsed: number; overspent: boolean; }' is not assignable to parameter of type '(value: IBudget & Required<{ _id: string | ObjectId; }> & { __v: number; }, index: number, array: (IBudget & Required<{ _id: string | ObjectId; }> & { ...; })[]) => { ...; }'.
+  Types of parameters 'b' and 'value' are incompatible.
+    Type 'IBudget & Required<{ _id: string | ObjectId; }> & { __v: number; }' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'IBudget & Required<{ _id: string | ObjectId; }> & { __v: number; }'.

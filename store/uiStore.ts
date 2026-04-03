@@ -9,6 +9,7 @@ export interface Toast {
 export type SheetType =
   | null
   | 'money'
+  | 'money-edit'
   | 'habit'
   | 'activity'
   | 'journal'

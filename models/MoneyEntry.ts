@@ -20,6 +20,8 @@ const moneyEntrySchema = new Schema<IMoneyEntry>(
 
 moneyEntrySchema.index({ userId: 1, date: -1 });
 moneyEntrySchema.index({ userId: 1, type: 1, date: -1 });
+moneyEntrySchema.index({ userId: 1, category: 1, date: -1 });
+moneyEntrySchema.index({ userId: 1, paymentMode: 1, date: -1 });
 
 const MoneyEntry: Model<IMoneyEntry> = mongoose.models?.MoneyEntry || mongoose.model<IMoneyEntry>("MoneyEntry", moneyEntrySchema);
 export default MoneyEntry;

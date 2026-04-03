@@ -47,8 +47,11 @@ export interface IDayBalance {
   date: Date;
   openingCash: number;
   openingUPI: number;
-  closingCashActual: number;
+  closingCashActual: number | null;
+  closingUPIActual: number | null;
+  carryForward: boolean;
   note?: string;
+  tallyNote?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

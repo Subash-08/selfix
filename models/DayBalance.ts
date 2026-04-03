@@ -7,8 +7,11 @@ const dayBalanceSchema = new Schema<IDayBalance>(
     date: { type: Date, required: true },
     openingCash: { type: Number, default: 0 },
     openingUPI: { type: Number, default: 0 },
-    closingCashActual: { type: Number, default: 0 },
+    closingCashActual: { type: Number, default: null },
+    closingUPIActual: { type: Number, default: null },
+    carryForward: { type: Boolean, default: false },
     note: { type: String },
+    tallyNote: { type: String },
   },
   { timestamps: true }
 );

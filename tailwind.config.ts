@@ -41,6 +41,8 @@ const config: Config = {
       },
       fontFamily: {
         geist: ["var(--font-geist)", "sans-serif"],
+        sora: ["var(--font-sora)", "sans-serif"],
+        "dm-sans": ["var(--font-dm)", "sans-serif"],
       },
       screens: {
         sm: "375px",

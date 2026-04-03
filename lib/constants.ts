@@ -1,25 +1,28 @@
 // ─── Money Categories ──────────────────────────────────────────
 export const MONEY_CATEGORIES = [
-  { id: 'food', label: 'Food & Dining', icon: '🍔' },
-  { id: 'transport', label: 'Transport', icon: '🚗' },
-  { id: 'shopping', label: 'Shopping', icon: '🛍️' },
-  { id: 'bills', label: 'Bills & Utilities', icon: '⚡' },
-  { id: 'health', label: 'Health', icon: '🏥' },
-  { id: 'entertainment', label: 'Entertainment', icon: '🎬' },
-  { id: 'education', label: 'Education', icon: '📚' },
-  { id: 'personal', label: 'Personal Care', icon: '✨' },
-  { id: 'family', label: 'Family', icon: '👨‍👩‍👧' },
-  { id: 'savings', label: 'Savings', icon: '🏦' },
-  { id: 'investment', label: 'Investment', icon: '📈' },
-  { id: 'salary', label: 'Salary', icon: '💰' },
-  { id: 'other', label: 'Other', icon: '📦' },
+  { id: 'food', label: 'Food & Dining', icon: 'Utensils', color: '#f59e0b' },
+  { id: 'transport', label: 'Transport', icon: 'Car', color: '#3b82f6' },
+  { id: 'shopping', label: 'Shopping', icon: 'ShoppingBag', color: '#ec4899' },
+  { id: 'bills', label: 'Bills & Utilities', icon: 'Zap', color: '#8b5cf6' },
+  { id: 'health', label: 'Health', icon: 'Heart', color: '#ef4444' },
+  { id: 'entertainment', label: 'Entertainment', icon: 'Film', color: '#06b6d4' },
+  { id: 'education', label: 'Education', icon: 'BookOpen', color: '#10b981' },
+  { id: 'personal', label: 'Personal Care', icon: 'Sparkles', color: '#f472b6' },
+  { id: 'family', label: 'Family', icon: 'Users', color: '#fb923c' },
+  { id: 'savings', label: 'Savings', icon: 'PiggyBank', color: '#22c55e' },
+  { id: 'investment', label: 'Investment', icon: 'TrendingUp', color: '#6366f1' },
+  { id: 'salary', label: 'Salary', icon: 'Briefcase', color: '#22c55e' },
+  { id: 'freelance', label: 'Freelance', icon: 'Laptop', color: '#10b981' },
+  { id: 'business', label: 'Business', icon: 'Building2', color: '#14b8a6' },
+  { id: 'rent', label: 'Rent', icon: 'Home', color: '#a855f7' },
+  { id: 'other', label: 'Other', icon: 'Package', color: '#6b7280' },
 ] as const;
 
 export const PAYMENT_MODES = [
-  { id: 'cash', label: 'Cash', icon: '💵' },
-  { id: 'upi', label: 'UPI', icon: '📱' },
-  { id: 'card', label: 'Card', icon: '💳' },
-  { id: 'bank', label: 'Bank', icon: '🏦' },
+  { id: 'cash', label: 'Cash', icon: 'Banknote' },
+  { id: 'upi', label: 'UPI', icon: 'Smartphone' },
+  { id: 'card', label: 'Card', icon: 'CreditCard' },
+  { id: 'bank', label: 'Bank', icon: 'Landmark' },
 ] as const;
 
 // ─── Activity Categories ───────────────────────────────────────
