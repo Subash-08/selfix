@@ -37,6 +37,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -63,7 +64,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geist.variable} ${sora.variable} ${dmSans.variable} antialiased min-h-screen bg-background text-text`}>
+      <body className={`${geist.variable} ${sora.variable} ${dmSans.variable} antialiased min-h-screen w-full overflow-x-hidden bg-background text-text`}>
         <ThemeProvider>
           {children}
           <ToastContainer />

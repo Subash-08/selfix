@@ -312,7 +312,7 @@ export function AddMoneySheet({ selectedDate, editEntry, onClearEdit }: Props) {
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add a note..."
             maxLength={200}
-            className="h-11 px-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] focus:outline-none focus:border-[var(--accent)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm transition-colors"
+            className="h-11 px-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] focus:outline-none focus:border-[var(--accent)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-base transition-colors"
           />
         )}
 

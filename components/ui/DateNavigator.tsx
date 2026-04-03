@@ -98,7 +98,7 @@ export function DateNavigator({ selectedDate, onChange }: DateNavigatorProps) {
           onChange={(e) => {
             if (e.target.value) onChange(startOfDay(new Date(e.target.value)));
           }}
-          className="absolute inset-0 opacity-0 cursor-pointer"
+          className="absolute inset-0 opacity-0 cursor-pointer pl-10 text-base"
           tabIndex={-1}
         />
       </button>

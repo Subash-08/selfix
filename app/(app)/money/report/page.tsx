@@ -128,14 +128,14 @@ export default function MoneyReportPage() {
               type="date"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="flex-1 h-10 px-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+              className="flex-1 h-10 px-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
             />
             <span className="flex items-center text-[var(--text-muted)] text-sm">→</span>
             <input
               type="date"
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="flex-1 h-10 px-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+              className="flex-1 h-10 px-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
             />
           </div>
         )}
