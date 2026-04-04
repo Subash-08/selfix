@@ -7,16 +7,16 @@ import { useUIStore } from "@/store/uiStore";
 import type { SheetType } from "@/store/uiStore";
 
 const ROUTE_MAP: Record<string, { sheet: SheetType; Icon: typeof Plus }> = {
-  "/money":     { sheet: "money",   Icon: IndianRupee },
-  "/habits":    { sheet: "habit",   Icon: RotateCcw },
-  "/activity":  { sheet: "activity", Icon: Timer },
-  "/journal":   { sheet: "journal", Icon: PenSquare },
-  "/goals":     { sheet: "goal",    Icon: Target },
-  "/health":    { sheet: "health",  Icon: Droplet },
-  "/dashboard": { sheet: "money",   Icon: Plus },
+  "/money": { sheet: "money", Icon: IndianRupee },
+  "/habits": { sheet: "habit", Icon: RotateCcw },
+  "/activity": { sheet: "activity", Icon: Timer },
+  "/journal": { sheet: "journal", Icon: PenSquare },
+  "/goals": { sheet: "goal", Icon: Target },
+  "/health": { sheet: "health", Icon: Droplet },
+  "/dashboard": { sheet: "money", Icon: Plus },
 };
 
-const HIDDEN_PATHS = ["/", "/login", "/signup", "/settings", "/analytics"];
+const HIDDEN_PATHS = ["/", "/login", "/signup", "/settings", "/analytics", "/money", "/habits", "tasks"];
 
 export function FAB() {
   const pathname = usePathname();

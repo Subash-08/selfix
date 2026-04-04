@@ -18,6 +18,11 @@ const userSchema = new Schema<IUser>(
     verificationTokenExpiry: { type: Date },
     resetToken: { type: String },
     resetTokenExpiry: { type: Date },
+    aiSettings: {
+      style: { type: String, default: "" },
+      preferredTone: { type: String, default: "reflective" },
+      geminiKey: { type: String, default: "" }, // Encrypted user API key
+    },
   },
   { timestamps: true }
 );

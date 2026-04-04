@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { useSession, signOut } from "next-auth/react";
-import { Moon, Sun, Monitor, UserCircle, Palette, IndianRupee, Bell, Database, Shield, LogOut, ChevronRight, Save, Loader2 } from "lucide-react";
+import { Moon, Sun, Monitor, UserCircle, Palette, IndianRupee, Bell, Database, Shield, LogOut, ChevronRight, Save, Loader2, Wand2, Key, Eye, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ import { TIMEZONES, MONEY_CATEGORIES } from "@/lib/constants";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
-type Section = "profile" | "appearance" | "money" | "notifications" | "data" | "account";
+type Section = "profile" | "appearance" | "ai" | "money" | "notifications" | "data" | "account";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -29,6 +29,11 @@ export default function SettingsPage() {
   const [locale, setLocale] = useState("en-IN");
   const [currency, setCurrency] = useState("INR");
   const [weekStartsOn, setWeekStartsOn] = useState(1);
+  const [aiStyle, setAiStyle] = useState("");
+  const [aiTone, setAiTone] = useState("reflective");
+  const [aiKey, setAiKey] = useState("");
+  const [hasExistingKey, setHasExistingKey] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     if (profileData?.data) {
@@ -38,6 +43,10 @@ export default function SettingsPage() {
       setLocale(p.locale || "en-IN");
       setCurrency(p.currency || "INR");
       setWeekStartsOn(p.weekStartsOn ?? 1);
+      setAiStyle(p.aiSettings?.style || "");
+      setAiTone(p.aiSettings?.preferredTone || "reflective");
+      setHasExistingKey(!!p.aiSettings?.hasKey);
+      if (p.aiSettings?.hasKey) setAiKey(p.aiSettings?.geminiKey || "");
     }
   }, [profileData]);
 
@@ -47,7 +56,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, timezone, locale, currency, weekStartsOn }),
+        body: JSON.stringify({ name, timezone, locale, currency, weekStartsOn, aiSettings: { style: aiStyle, preferredTone: aiTone, geminiKey: aiKey } }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
@@ -79,6 +88,7 @@ export default function SettingsPage() {
   const sections = [
     { id: "profile" as const, label: "Profile", icon: UserCircle },
     { id: "appearance" as const, label: "Appearance", icon: Palette },
+    { id: "ai" as const, label: "AI & Journal", icon: Wand2 },
     { id: "money" as const, label: "Money", icon: IndianRupee },
     { id: "notifications" as const, label: "Notifications", icon: Bell },
     { id: "data" as const, label: "Data", icon: Database },
@@ -194,6 +204,66 @@ export default function SettingsPage() {
                 </button>
               );
             })}
+          </div>
+        </Card>
+      )}
+
+      {/* AI & Journal Section */}
+      {activeSection === "ai" && (
+        <Card className="flex flex-col gap-5 p-5">
+          <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-widest">AI Writing Style</h3>
+          <p className="text-xs text-[var(--text-muted)] -mt-2">Tell the AI how you like your journal written. This is injected into every generation.</p>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Your Style</label>
+            <textarea
+              value={aiStyle}
+              onChange={e => setAiStyle(e.target.value)}
+              placeholder='e.g. "I like short, direct writing" or "I prefer deep emotional analysis with metaphors"'
+              className="w-full bg-[var(--bg-elevated)] min-h-[100px] text-[var(--text-primary)] px-4 py-3 rounded-xl border border-[var(--border)] focus:border-[var(--accent)] resize-none focus:outline-none text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Default Tone</label>
+            <div className="flex flex-wrap gap-2">
+              {["reflective", "motivational", "analytical", "concise", "storytelling"].map(t => (
+                <button key={t} type="button" onClick={() => setAiTone(t)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold capitalize transition-all ${
+                    aiTone === t
+                      ? "bg-[var(--accent)] text-white shadow-sm"
+                      : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)]"
+                  }`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Button onClick={saveProfile} isLoading={saving}>
+            <Save size={16} className="mr-2" /> Save AI Settings
+          </Button>
+
+          {/* API Key Section */}
+          <div className="border-t border-[var(--border)] pt-5 mt-2 flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-widest flex items-center gap-2"><Key size={14} /> Gemini API Key</h3>
+            <p className="text-xs text-[var(--text-muted)] -mt-1">Your key is encrypted and stored securely. It never leaves the server.</p>
+            <div className="relative">
+              <input
+                type={showKey ? "text" : "password"}
+                value={aiKey}
+                onChange={e => setAiKey(e.target.value)}
+                placeholder={hasExistingKey ? "Key saved (enter new to replace)" : "Paste your Gemini API key here"}
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl px-4 py-3 pr-12 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none font-mono"
+              />
+              <button type="button" onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {hasExistingKey && (
+              <span className="text-[10px] font-bold text-[var(--accent-green)] flex items-center gap-1">✓ API key is configured</span>
+            )}
+            <p className="text-[10px] text-[var(--text-muted)]">Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" className="text-[var(--accent)] underline">Google AI Studio</a></p>
           </div>
         </Card>
       )}

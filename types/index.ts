@@ -20,6 +20,11 @@ export interface IUser {
   verificationTokenExpiry?: Date;
   resetToken?: string;
   resetTokenExpiry?: Date;
+  aiSettings?: {
+    style?: string;
+    preferredTone?: string;
+    geminiKey?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }

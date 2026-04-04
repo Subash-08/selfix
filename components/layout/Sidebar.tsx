@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, IndianRupee, RotateCcw, PenSquare, Activity, Target, HeartPulse, LineChart, Settings } from "lucide-react";
+import { LayoutDashboard, IndianRupee, PenSquare, Activity, Target, HeartPulse, LineChart, Settings, CheckSquare } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
 export function Sidebar() {
@@ -14,7 +14,7 @@ export function Sidebar() {
   const topItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Money", href: "/money", icon: IndianRupee },
-    { label: "Habits", href: "/habits", icon: RotateCcw },
+    { label: "Tasks", href: "/tasks", icon: CheckSquare },
     { label: "Journal", href: "/journal", icon: PenSquare },
     { label: "Activity", href: "/activity", icon: Activity },
     { label: "Goals", href: "/goals", icon: Target },

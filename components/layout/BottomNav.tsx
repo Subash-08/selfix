@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, IndianRupee, RotateCcw, PenSquare, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, IndianRupee, PenSquare, MoreHorizontal, CheckSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { MobileDrawer } from "./MobileDrawer";
 
@@ -17,7 +17,7 @@ export function BottomNav() {
   const tabs = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Money", href: "/money", icon: IndianRupee },
-    { label: "Habits", href: "/habits", icon: RotateCcw },
+    { label: "Tasks", href: "/tasks", icon: CheckSquare },
     { label: "Journal", href: "/journal", icon: PenSquare },
   ];
 
