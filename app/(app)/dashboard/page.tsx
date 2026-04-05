@@ -8,14 +8,18 @@ import { Card } from "@/components/ui/Card";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StreakBadge } from "@/components/ui/StreakBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { IndianRupee, RotateCcw, PenSquare, Activity, CheckCircle2, Droplet, Target, Flame } from "lucide-react";
+import {
+  IndianRupee, RotateCcw, PenSquare, Activity,
+  CheckCircle2, Droplet, Target, Flame, CheckSquare,
+} from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { data, isLoading, error } = useSWR("/api/analytics/summary?period=today", fetcher);
+  const { data, isLoading, error } = useSWR("/api/analytics/summary?period=today", fetcher, {
+    refreshInterval: 60000,
+  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -43,6 +47,7 @@ export default function DashboardPage() {
           <Skeleton height="88px" rounded="2xl" />
         </div>
         <Skeleton height="130px" rounded="2xl" />
+        <Skeleton height="100px" rounded="2xl" />
       </div>
     );
   }
@@ -51,13 +56,18 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-[var(--text-muted)]">Something went wrong</p>
-        <button onClick={() => window.location.reload()} className="text-sm font-bold text-[var(--accent)] underline">Tap to retry</button>
+        <button onClick={() => window.location.reload()} className="text-sm font-bold text-[var(--accent)] underline">
+          Tap to retry
+        </button>
       </div>
     );
   }
 
   const d = data.data;
   const habitList = d.habits?.list || [];
+  const actMins = d.activity?.totalMinutes || 0;
+  const actH = Math.floor(actMins / 60);
+  const actM = actMins % 60;
 
   return (
     <div className="flex flex-col gap-8 pb-24 animate-in fade-in duration-500">
@@ -71,8 +81,8 @@ export default function DashboardPage() {
 
       {/* Composite Score */}
       <section className="flex flex-col items-center justify-center py-4">
-        <ProgressRing value={d.dailyScore} size={180} strokeWidth={14} color="var(--accent)">
-          <span className="text-4xl font-extrabold text-[var(--text-primary)]">{d.dailyScore}</span>
+        <ProgressRing value={d.dailyScore || 0} size={180} strokeWidth={14} color="var(--accent)">
+          <span className="text-4xl font-extrabold text-[var(--text-primary)]">{d.dailyScore || 0}</span>
           <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Score</span>
         </ProgressRing>
       </section>
@@ -80,12 +90,13 @@ export default function DashboardPage() {
       {/* Four Mini Cards */}
       <section className="grid grid-cols-2 gap-4">
         <Link href="/money">
-          <Card className="flex flex-col gap-2 relative overflow-hidden group hover:border-[var(--accent-red)] transition-colors">
+          <Card className="flex flex-col gap-1 relative overflow-hidden group hover:border-[var(--accent-red)] transition-colors">
             <div className="flex items-center gap-2 text-[var(--text-secondary)]">
               <IndianRupee size={16} />
               <span className="text-xs font-semibold uppercase tracking-wider">Spent</span>
             </div>
             <p className="text-2xl font-bold text-[var(--text-primary)]">₹{d.money?.todaySpent || 0}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">Budget health: {d.money?.budgetScore ?? 50}%</p>
             <div className="absolute top-0 right-0 p-2 opacity-10 blur-sm">
               <IndianRupee size={48} className="text-[var(--accent-red)]" />
             </div>
@@ -93,12 +104,15 @@ export default function DashboardPage() {
         </Link>
 
         <Link href="/habits">
-          <Card className="flex flex-col gap-2 relative overflow-hidden group hover:border-[var(--accent-amber)] transition-colors">
+          <Card className="flex flex-col gap-1 relative overflow-hidden group hover:border-[var(--accent-amber)] transition-colors">
             <div className="flex items-center gap-2 text-[var(--text-secondary)]">
               <RotateCcw size={16} />
               <span className="text-xs font-semibold uppercase tracking-wider">Habits</span>
             </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">{d.habits?.completed || 0} / {d.habits?.total || 0}</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">
+              {d.habits?.completed || 0} / {d.habits?.total || 0}
+            </p>
+            <p className="text-[10px] text-[var(--text-muted)]">{d.habits?.score || 0}% today</p>
             <div className="absolute top-0 right-0 p-2 opacity-10 blur-sm">
               <RotateCcw size={48} className="text-[var(--accent-amber)]" />
             </div>
@@ -106,7 +120,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link href="/journal">
-          <Card className="flex flex-col gap-2 relative overflow-hidden group hover:border-[var(--accent-green)] transition-colors">
+          <Card className="flex flex-col gap-1 relative overflow-hidden group hover:border-[var(--accent-green)] transition-colors">
             <div className="flex items-center gap-2 text-[var(--text-secondary)]">
               <PenSquare size={16} />
               <span className="text-xs font-semibold uppercase tracking-wider">Journal</span>
@@ -115,7 +129,7 @@ export default function DashboardPage() {
               {d.journal?.written ? (
                 <span className="text-[var(--accent-green)]">Done ✓</span>
               ) : (
-                <span className="text-[var(--text-muted)]">Pending</span>
+                <span className="text-[var(--text-muted)] text-lg">Write today →</span>
               )}
             </p>
             <div className="absolute top-0 right-0 p-2 opacity-10 blur-sm">
@@ -125,12 +139,15 @@ export default function DashboardPage() {
         </Link>
 
         <Link href="/activity">
-          <Card className="flex flex-col gap-2 relative overflow-hidden group hover:border-[var(--accent-blue)] transition-colors">
+          <Card className="flex flex-col gap-1 relative overflow-hidden group hover:border-[var(--accent-blue)] transition-colors">
             <div className="flex items-center gap-2 text-[var(--text-secondary)]">
               <Activity size={16} />
               <span className="text-xs font-semibold uppercase tracking-wider">Active</span>
             </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">{d.activity?.totalMinutes || 0}m</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">
+              {actH}h {actM}m
+            </p>
+            <p className="text-[10px] text-[var(--text-muted)]">🍅 {d.activity?.pomodoroCount || 0} sessions</p>
             <div className="absolute top-0 right-0 p-2 opacity-10 blur-sm">
               <Activity size={48} className="text-[var(--accent-blue)]" />
             </div>
@@ -146,16 +163,18 @@ export default function DashboardPage() {
         </h2>
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 snap-x">
           {habitList.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)]">No habits due today</p>
+            <Link href="/habits">
+              <p className="text-xs text-[var(--text-muted)] py-4">No habits yet — tap to add</p>
+            </Link>
           ) : (
             habitList.map((h: any) => (
-              <div key={h._id} className="w-[130px] shrink-0 snap-center bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center gap-3 shadow-sm">
+              <Link key={h._id} href="/habits" className="w-[130px] shrink-0 snap-center bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center gap-3 shadow-sm hover:border-[var(--accent)] transition-colors">
                 <span className="text-3xl drop-shadow-sm">{h.icon || "✅"}</span>
                 <span className="text-xs font-medium text-center line-clamp-1 text-[var(--text-primary)]">{h.name}</span>
                 <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${h.done ? "bg-[var(--accent-green)] border-[var(--accent-green)] text-white" : "border-[var(--border-hover)] text-transparent"}`}>
                   <CheckCircle2 size={18} strokeWidth={3} />
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </div>
@@ -166,22 +185,31 @@ export default function DashboardPage() {
         <Link href="/health">
           <Card className="flex flex-col items-center justify-center text-center py-6">
             <Droplet size={24} className="text-blue-400 mb-2" />
-            <p className="text-2xl font-bold text-[var(--text-primary)]">{d.health?.waterLogged || 0}/{d.health?.waterGoal || 8}</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">
+              {d.health?.waterLogged || 0}/{d.health?.waterGoal || 8}
+            </p>
             <p className="text-xs font-medium text-[var(--text-muted)]">glasses today</p>
           </Card>
         </Link>
 
         <Link href="/goals">
-          <Card className="flex flex-col justify-between py-4">
+          <Card className="flex flex-col justify-between py-4 min-h-[100px]">
             {d.nextGoal ? (
               <>
-                <span className="inline-block px-2 py-0.5 bg-[var(--accent)] text-white text-[10px] font-bold uppercase tracking-wider rounded-sm self-start">Goal</span>
-                <h3 className="text-sm font-bold mt-2 text-[var(--text-primary)] leading-snug">{d.nextGoal.title}</h3>
+                <span className="inline-block px-2 py-0.5 bg-[var(--accent)] text-white text-[10px] font-bold uppercase tracking-wider rounded-sm self-start">
+                  Next Task
+                </span>
+                <h3 className="text-sm font-bold mt-2 text-[var(--text-primary)] leading-snug line-clamp-2">
+                  {d.nextGoal.title}
+                </h3>
+                {d.nextGoal.date && (
+                  <p className="text-[10px] text-[var(--text-muted)] mt-1">Due: {d.nextGoal.date}</p>
+                )}
               </>
             ) : (
               <>
                 <Target size={20} className="text-[var(--accent)]" />
-                <h3 className="text-sm font-bold text-[var(--text-muted)] mt-2">Set a goal</h3>
+                <h3 className="text-sm font-bold text-[var(--text-muted)] mt-2">Set a goal →</h3>
               </>
             )}
           </Card>
@@ -204,7 +232,7 @@ export default function DashboardPage() {
       )}
 
       {/* Streaks */}
-      <section className="mb-4">
+      <section>
         <h2 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-4">
           <Flame size={16} className="text-[var(--accent-amber)]" />
           ACTIVE STREAKS
@@ -220,6 +248,36 @@ export default function DashboardPage() {
             ))
           )}
         </div>
+      </section>
+
+      {/* Tasks Quick View */}
+      <section>
+        <Link href="/goals">
+          <Card className="hover:border-[var(--accent)] transition-colors">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckSquare size={16} className="text-[var(--accent)]" />
+              <span className="text-sm font-bold text-[var(--text-primary)]">TODAY'S TASKS</span>
+              <span className="ml-auto text-xs font-bold text-[var(--text-secondary)]">
+                {d.tasks?.todayCompleted || 0} / {d.tasks?.todayTotal || 0}
+              </span>
+            </div>
+            {(d.tasks?.todayTotal || 0) === 0 ? (
+              <p className="text-xs text-[var(--text-muted)]">No tasks today — tap to add</p>
+            ) : (
+              <>
+                <div className="w-full h-2 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
+                    style={{ width: `${d.tasks?.todayPct || 0}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                  {d.tasks?.todayPct || 0}% complete
+                </p>
+              </>
+            )}
+          </Card>
+        </Link>
       </section>
     </div>
   );

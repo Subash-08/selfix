@@ -46,7 +46,10 @@ export default function SettingsPage() {
       setAiStyle(p.aiSettings?.style || "");
       setAiTone(p.aiSettings?.preferredTone || "reflective");
       setHasExistingKey(!!p.aiSettings?.hasKey);
-      if (p.aiSettings?.hasKey) setAiKey(p.aiSettings?.geminiKey || "");
+      
+      // DON'T set the masked key in the input - leave it empty
+      // This way users can type a new key without seeing ••••
+      setAiKey(""); // Empty by default
     }
   }, [profileData]);
 

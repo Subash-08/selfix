@@ -442,8 +442,36 @@ export default function JournalPage() {
         )}
       </div>
 
-      {/* Save button for new entries */}
-      {!editingId && (
+      {/* Save button */}
+      {editingId ? (
+        <Button
+          onClick={async () => {
+            setIsSaving(true);
+            try {
+              await fetch(`/api/journal/${editingId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  rawNotes,
+                  mood,
+                  expandedContent,
+                  gratitude: gratitude.filter(Boolean),
+                }),
+              });
+              addToast({ message: "Changes saved!", type: "success" });
+              await mutate();
+            } catch {
+              addToast({ message: "Failed to save changes", type: "error" });
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+          isLoading={isSaving}
+          className="w-full"
+        >
+          Save Changes
+        </Button>
+      ) : (
         <Button onClick={handleCreateEntry} isLoading={isSaving} className="w-full">
           Save Entry
         </Button>

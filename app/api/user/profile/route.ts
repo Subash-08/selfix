@@ -44,18 +44,24 @@ export async function PUT(req: Request) {
 
     const allowedFields = ["name", "avatar", "timezone", "locale", "currency", "weekStartsOn", "healthDefaults", "aiSettings"];
     const update: Record<string, any> = {};
+    
     for (const key of allowedFields) {
       if (body[key] !== undefined) {
         if (key === "aiSettings") {
-          // Encrypt the gemini key before saving
           const settings = { ...body[key] };
-          if (settings.geminiKey && !settings.geminiKey.startsWith("••••")) {
-            settings.geminiKey = encrypt(settings.geminiKey);
-          } else if (settings.geminiKey?.startsWith("••••")) {
-            // User didn't change the key — keep existing value
-            const existingUser = await User.findById(session.user.id).select("aiSettings").lean();
-            settings.geminiKey = existingUser?.aiSettings?.geminiKey || "";
+          
+          // FIX: Check if user is trying to save a new key
+          if (settings.geminiKey) {
+            // If it's the masked placeholder, keep the existing key
+            if (settings.geminiKey.startsWith("••••")) {
+              const existingUser = await User.findById(session.user.id).select("aiSettings").lean();
+              settings.geminiKey = existingUser?.aiSettings?.geminiKey || "";
+            } else {
+              // NEW KEY: Encrypt it
+              settings.geminiKey = encrypt(settings.geminiKey);
+            }
           }
+          
           update[key] = settings;
         } else {
           update[key] = body[key];
@@ -63,12 +69,15 @@ export async function PUT(req: Request) {
       }
     }
 
-    const user = await User.findByIdAndUpdate(session.user.id, { $set: update }, { new: true })
-      .select("-password -verificationToken -verificationTokenExpiry -resetToken -resetTokenExpiry")
-      .lean();
+    const user = await User.findByIdAndUpdate(
+      session.user.id, 
+      { $set: update }, 
+      { new: true, runValidators: true } // Added runValidators
+    ).select("-password -verificationToken -verificationTokenExpiry -resetToken -resetTokenExpiry").lean();
 
     return NextResponse.json({ success: true, data: user });
   } catch (error: any) {
+    console.error("Profile update error:", error); // Debug logging
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

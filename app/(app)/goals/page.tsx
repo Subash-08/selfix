@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { Target, Sparkles, Brain, Plus, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { format, parseISO, addDays, subDays, startOfWeek } from "date-fns";
+import { Plus, Check, Trash2, CalendarDays } from "lucide-react";
+
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -10,254 +12,539 @@ import { ProgressRing } from "@/components/ui/ProgressRing";
 import { Button } from "@/components/ui/Button";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Input } from "@/components/ui/Input";
-import { GOAL_TEMPLATES } from "@/lib/constants";
 import { useUIStore } from "@/store/uiStore";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
-export default function GoalsPage() {
-  const { data, isLoading, mutate } = useSWR("/api/goals", fetcher);
+interface Task {
+  _id: string;
+  title: string;
+  date: string;       // "YYYY-MM-DD"
+  completed: boolean;
+  order: number;
+  createdAt: string;
+}
+
+export default function TasksPage() {
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
+
+  const [view, setView] = useState<"today" | "week" | "date">("today");
+  const [pickedDate, setPickedDate] = useState<string>(todayStr);
+  const [title, setTitle] = useState("");
+  const [taskDate, setTaskDate] = useState(todayStr);
+  const [saving, setSaving] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [undoTask, setUndoTask] = useState<Task | null>(null);
+  const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [dismissedCarryForward, setDismissedCarryForward] = useState(false);
+
   const { activeSheet, closeSheet, addToast, openSheet } = useUIStore();
 
-  const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
-  const [isSuggesting, setIsSuggesting] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
-  const [showTemplates, setShowTemplates] = useState(false);
+  const activeDate = view === "date" ? pickedDate : todayStr;
+  const { data: dayData, isLoading: dayLoading, mutate: mutateDay } =
+    useSWR(view !== "week" ? `/api/tasks?date=${activeDate}` : null, fetcher);
 
-  // New goal form
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("personal");
-  const [creating, setCreating] = useState(false);
+  const mondayOfWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const { data: weekData, isLoading: weekLoading, mutate: mutateWeek } =
+    useSWR(view === "week" ? `/api/tasks?week=${mondayOfWeek}` : null, fetcher);
 
-  const goals = data?.data || [];
-  const activeGoals = goals.filter((g: any) => g.status === "active");
-  const completedGoals = goals.filter((g: any) => g.status === "completed");
+  const { data: yesterdayData, mutate: mutateYesterday } =
+    useSWR(`/api/tasks?date=${yesterdayStr}`, fetcher);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title) return addToast({ message: "Title required", type: "error" });
-    setCreating(true);
-    try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, category }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error);
-      addToast({ message: "Goal created!", type: "success" });
-      setTitle(""); setDescription("");
-      closeSheet();
-      mutate();
-    } catch (e: any) { addToast({ message: e.message, type: "error" }); }
-    finally { setCreating(false); }
+  const tasks: Task[] = dayData?.data || [];
+  const weekTasks: { [date: string]: Task[] } = weekData?.data || {};
+  const yesterdayTasks: Task[] = (yesterdayData?.data || []).filter((t: Task) => !t.completed);
+
+  const mutate = () => {
+    if (mutateDay) mutateDay();
+    if (mutateWeek) mutateWeek();
   };
 
-  const handleCreateFromTemplate = async (tmpl: any) => {
-    try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: tmpl.title,
-          description: tmpl.description,
-          category: tmpl.category || "personal",
-          milestones: tmpl.milestones.map((m: any) => ({ title: typeof m === "string" ? m : m.title, completed: false, order: m.order || 0 })),
-        }),
-      });
-      if (res.ok) {
-        addToast({ message: `"${tmpl.title}" goal created!`, type: "success" });
-        setShowTemplates(false);
-        mutate();
-      }
-    } catch { addToast({ message: "Failed", type: "error" }); }
-  };
+  // Helper functions
+  function formatDayLabel(dateStr: string): string {
+    return format(parseISO(dateStr), "EEE, MMM d");
+  }
 
-  const handleToggleMilestone = async (goalId: string, milestones: any[], index: number) => {
-    const updated = milestones.map((m: any, i: number) => i === index ? { ...m, completed: !m.completed } : m);
+  function isToday(dateStr: string): boolean {
+    return dateStr === todayStr;
+  }
+
+  function getWeekDays(): string[] {
+    const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return Array.from({ length: 7 }, (_, i) =>
+      format(addDays(monday, i), "yyyy-MM-dd")
+    );
+  }
+
+  // Handlers
+  const handleToggleComplete = async (task: Task) => {
     try {
-      await fetch(`/api/goals/${goalId}`, {
+      await fetch(`/api/tasks/${task._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ milestones: updated }),
+        body: JSON.stringify({ completed: !task.completed }),
       });
       mutate();
-    } catch { addToast({ message: "Failed to update", type: "error" }); }
+    } catch {
+      addToast({ message: "Failed to update task", type: "error" });
+    }
   };
 
-  const handleAISuggest = async () => {
-    setIsSuggesting(true);
+  const handleUndo = async () => {
+    if (!undoTask) return;
     try {
-      const res = await fetch("/api/goals/ai-suggest");
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error);
-      setAiSuggestions(d.data || []);
-      addToast({ message: "AI suggestions ready!", type: "success" });
-    } catch (e: any) { addToast({ message: e.message, type: "error" }); }
-    finally { setIsSuggesting(false); }
-  };
-
-  const absorbGoal = async (g: any) => {
-    try {
-      await fetch("/api/goals", {
+      await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...g,
-          aiSuggested: true,
-          milestones: g.milestones?.map((m: any, i: number) => ({ title: typeof m === "string" ? m : m.title, completed: false, order: i })),
+          title: undoTask.title,
+          date: undoTask.date,
+          order: undoTask.order
         }),
       });
-      setAiSuggestions(prev => prev.filter(s => s.title !== g.title));
       mutate();
-      addToast({ message: "Goal added!", type: "success" });
-    } catch { addToast({ message: "Failed", type: "error" }); }
+      setUndoTask(null);
+      if (undoTimer) clearTimeout(undoTimer);
+      addToast({ message: "Task restored!", type: "success" });
+    } catch {
+      addToast({ message: "Failed to restore task", type: "error" });
+    }
   };
 
+  const handleDelete = async (task: Task) => {
+    try {
+      await fetch(`/api/tasks/${task._id}`, { method: "DELETE" });
+      mutate();
+      setUndoTask(task);
+      if (undoTimer) clearTimeout(undoTimer);
+      
+      // If we could add actions to toasts we would do it here, but store currently expects simple type
+      // Our custom uiStore Toast type does not have action so we just show info
+      addToast({ message: `"${task.title}" deleted`, type: "info" });
+      
+      const timer = setTimeout(() => setUndoTask(null), 3000);
+      setUndoTimer(timer);
+    } catch {
+      addToast({ message: "Failed to delete task", type: "error" });
+    }
+  };
+
+  const handleCarryForward = async () => {
+    try {
+      await fetch("/api/tasks/carry-forward", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: yesterdayTasks.map(t => t._id),
+          date: todayStr
+        }),
+      });
+      mutate();
+      if (mutateYesterday) mutateYesterday();
+      setDismissedCarryForward(true);
+      addToast({ message: "Tasks moved to today!", type: "success" });
+    } catch {
+      addToast({ message: "Failed to move tasks", type: "error" });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return addToast({ message: "Task title required", type: "error" });
+    setSaving(true);
+    try {
+      if (editingTask) {
+        await fetch(`/api/tasks/${editingTask._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim(), date: taskDate }),
+        });
+        
+        if (editingTask.date !== taskDate) {
+          addToast({ message: `Task moved to ${formatDayLabel(taskDate)}`, type: "success" });
+        } else {
+          addToast({ message: "Task updated!", type: "success" });
+        }
+      } else {
+        const existingForDate = view === "week"
+          ? (weekTasks[taskDate] || [])
+          : tasks.filter(t => t.date === taskDate);
+        const maxOrder = existingForDate.length > 0
+          ? Math.max(...existingForDate.map(t => t.order)) + 1
+          : 0;
+
+        await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim(), date: taskDate, order: maxOrder }),
+        });
+        addToast({ message: "Task added!", type: "success" });
+      }
+      setTitle("");
+      setEditingTask(null);
+      closeSheet();
+      mutate();
+    } catch {
+      addToast({ message: "Failed to save task", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderTaskList = (taskList: Task[], explicitDateIfEmpty?: string) => {
+    if (taskList.length === 0) {
+      if (view === "week") {
+        return <div className="text-xs text-[var(--text-muted)] py-1 pl-1">Nothing planned</div>;
+      }
+      return (
+        <EmptyState
+          title={`Nothing planned for ${explicitDateIfEmpty === todayStr ? 'today' : (explicitDateIfEmpty ? formatDayLabel(explicitDateIfEmpty) : 'today')}`}
+          subtitle="Tap + to add your first task"
+        />
+      );
+    }
+
+    const incomplete = taskList.filter(t => !t.completed).sort((a, b) => a.order - b.order);
+    const completed = taskList.filter(t => t.completed).sort((a, b) => a.order - b.order);
+
+    return (
+      <div className="flex flex-col gap-3">
+        {incomplete.map(task => (
+          <Card key={task._id} className="flex items-center gap-3 p-4 transition-all">
+            <button
+              onClick={() => handleToggleComplete(task)}
+              className="shrink-0 w-6 h-6 rounded-md border-2 border-[var(--border-hover)] hover:border-[var(--accent)] flex items-center justify-center transition-colors"
+            >
+              {/* Check hidden for incomplete */}
+            </button>
+            <span
+              onClick={() => {
+                setEditingTask(task);
+                setTitle(task.title);
+                setTaskDate(task.date);
+                openSheet("task");
+              }}
+              className="flex-1 text-sm font-bold text-[var(--text-primary)] cursor-pointer"
+            >
+              {task.title}
+            </span>
+            <button
+              onClick={() => handleDelete(task)}
+              className="shrink-0 text-[var(--text-muted)] hover:text-red-400 p-1"
+            >
+              <Trash2 size={15} />
+            </button>
+          </Card>
+        ))}
+
+        {completed.map(task => (
+          <Card key={task._id} className="flex items-center gap-3 p-4 opacity-50 transition-all">
+            <button
+              onClick={() => handleToggleComplete(task)}
+              className="shrink-0 w-6 h-6 rounded-md border-2 bg-[var(--accent-green)] border-[var(--accent-green)] flex items-center justify-center transition-colors"
+            >
+              <Check size={14} strokeWidth={3} className="text-white" />
+            </button>
+            <span
+              onClick={() => {
+                setEditingTask(task);
+                setTitle(task.title);
+                setTaskDate(task.date);
+                openSheet("task");
+              }}
+              className="flex-1 text-sm font-bold line-through text-[var(--text-primary)] cursor-pointer"
+            >
+              {task.title}
+            </span>
+            <button
+              onClick={() => handleDelete(task)}
+              className="shrink-0 text-[var(--text-muted)] hover:text-red-400 p-1"
+            >
+              <Trash2 size={15} />
+            </button>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  const isLoading = view === "week" ? weekLoading : dayLoading;
+  
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-6 w-full pb-24">
-        <Skeleton height="100px" rounded="2xl" />
-        <Skeleton height="100px" rounded="2xl" />
+      <div className="flex flex-col gap-4 w-full pb-24">
+        <Skeleton height="44px" rounded="xl" />
+        <Skeleton height="80px" rounded="2xl" />
+        <Skeleton height="60px" rounded="2xl" />
+        <Skeleton height="60px" rounded="2xl" />
+        <Skeleton height="60px" rounded="2xl" />
       </div>
     );
   }
+
+  const completedCount = tasks.filter(t => t.completed).length;
 
   return (
     <div className="flex flex-col gap-6 pb-24 animate-in fade-in duration-300">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-          <Target size={18} className="text-[var(--accent)]" /> Goals
+          ☑️ Tasks
         </h1>
-        <div className="flex gap-2">
-          <button onClick={() => setShowTemplates(!showTemplates)}
-            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)] transition-colors hover:text-[var(--text-primary)]">
-            📋 Templates
-          </button>
-          <button onClick={handleAISuggest} disabled={isSuggesting}
-            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-purple-500/10 text-purple-400 transition-colors hover:bg-purple-500/20">
-            {isSuggesting ? <Brain size={14} className="animate-pulse" /> : <Sparkles size={14} />}
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            setTitle("");
+            setTaskDate(view === "date" ? pickedDate : todayStr);
+            setEditingTask(null);
+            openSheet("task");
+          }}
+          className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center"
+        >
+          <Plus size={16} />
+        </button>
       </div>
 
-      {/* Templates */}
-      {showTemplates && (
-        <div className="flex flex-col gap-2 p-4 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl animate-in slide-in-from-top-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Goal Templates</h3>
-          {GOAL_TEMPLATES.map(t => (
-            <Card key={t.id} className="flex justify-between items-center p-3">
-              <div>
-                <h4 className="text-sm font-bold text-[var(--text-primary)]">{t.title}</h4>
-                <p className="text-xs text-[var(--text-muted)]">{t.description}</p>
-              </div>
-              <button onClick={() => handleCreateFromTemplate(t)} className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center">
-                <Plus size={14} />
-              </button>
-            </Card>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 p-1.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl">
+          {(["today", "week", "date"] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => {
+                setView(v);
+                if (v === "date" && !pickedDate) setPickedDate(todayStr);
+              }}
+              className={`flex-1 py-2 px-3 text-[13px] font-bold rounded-lg transition-colors ${
+                view === v
+                  ? "bg-[var(--accent)] text-white"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {v === "today" && "Today"}
+              {v === "week" && "This Week"}
+              {v === "date" && "Pick Date 📅"}
+            </button>
           ))}
+        </div>
+        
+        {view === "date" && (
+          <input
+            type="date"
+            value={pickedDate}
+            onChange={e => setPickedDate(e.target.value)}
+            max={format(addDays(new Date(), 365), "yyyy-MM-dd")}
+            className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+          />
+        )}
+      </div>
+
+      {view === "today" && yesterdayTasks.length > 0 && !dismissedCarryForward && (
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl p-3 flex items-center justify-between animate-in slide-in-from-top-2">
+          <span className="text-sm text-[var(--text-secondary)] flex items-center gap-1.5">
+            ↩ <span className="font-bold text-[var(--text-primary)]">{yesterdayTasks.length}</span> incomplete tasks from yesterday
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDismissedCarryForward(true)}
+              className="px-2 py-1 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            >
+              Dismiss
+            </button>
+            <button
+              onClick={handleCarryForward}
+              className="px-3 py-1.5 text-xs font-bold bg-[var(--accent)] text-white rounded-lg"
+            >
+              Move to Today
+            </button>
+          </div>
         </div>
       )}
 
-      {/* AI Suggestions */}
-      {aiSuggestions.length > 0 && (
-        <div className="flex flex-col gap-2 p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl animate-in fade-in">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-purple-400 flex items-center gap-1"><Sparkles size={12} /> AI Suggestions</h3>
-          {aiSuggestions.map((sg, i) => (
-            <Card key={i} className="flex justify-between items-start p-3 border-purple-500/10">
-              <div className="pr-3">
-                <h4 className="text-sm font-bold text-[var(--text-primary)]">{sg.title}</h4>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">{sg.description}</p>
-              </div>
-              <button onClick={() => absorbGoal(sg)} className="shrink-0 w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center">
-                <Plus size={14} />
-              </button>
-            </Card>
-          ))}
+      {view === "today" && tasks.length > 0 && (
+        <Card className="flex items-center justify-between p-5">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Today</span>
+            <span className="text-2xl font-black text-[var(--text-primary)]">
+              {completedCount === tasks.length ? "🎉 All done!" : `${completedCount} / ${tasks.length} done`}
+            </span>
+          </div>
+          <ProgressRing 
+            size={52} 
+            strokeWidth={5} 
+            color="var(--accent)"
+            value={tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}
+          >
+            <span className="text-xs font-bold text-[var(--text-primary)]">
+              {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
+            </span>
+          </ProgressRing>
+        </Card>
+      )}
+
+      {view === "today" && renderTaskList(tasks, todayStr)}
+
+      {view === "date" && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 pl-1">
+            {formatDayLabel(pickedDate)}
+            {isToday(pickedDate) && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-[var(--accent)]/10 text-[var(--accent)] uppercase tracking-wider">
+                Today
+              </span>
+            )}
+          </h2>
+          {renderTaskList(tasks, pickedDate)}
         </div>
       )}
 
-      {/* Active Goals */}
-      {activeGoals.length === 0 ? (
-        <EmptyState title="No active goals" subtitle="Create a goal or use templates to get started." />
-      ) : (
-        activeGoals.map((goal: any) => {
-          const ms = goal.milestones || [];
-          const completedMs = ms.filter((m: any) => m.completed).length;
-          const progressPct = ms.length > 0 ? Math.round((completedMs / ms.length) * 100) : 0;
-          const isExpanded = expandedGoal === goal._id;
+      {view === "week" && (
+        <div className="flex flex-col gap-6">
+          {(() => {
+            const allWeekTasks = Object.values(weekTasks).flat();
+            const doneCount = allWeekTasks.filter(t => t.completed).length;
+            const totalCount = allWeekTasks.length;
+            const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+            
+            return (
+              <div className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-widest pl-1">
+                This week: {doneCount} / {totalCount} tasks done {totalCount > 0 && `(${pct}%)`}
+              </div>
+            );
+          })()}
 
-          return (
-            <Card key={goal._id} className="flex flex-col p-4 transition-all">
-              <div className="flex items-center gap-3 cursor-pointer" onClick={() => setExpandedGoal(isExpanded ? null : goal._id)}>
-                <ProgressRing value={progressPct} size={50} strokeWidth={5} color="var(--accent)">
-                  <span className="text-[10px] font-extrabold text-[var(--text-primary)]">{progressPct}%</span>
-                </ProgressRing>
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">{goal.title}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)]">{goal.category}</span>
-                    {goal.aiSuggested && <Sparkles size={10} className="text-purple-400" />}
+          {getWeekDays().map(dateStr => {
+            const dayTasks = weekTasks[dateStr] || [];
+            const done = dayTasks.filter(t => t.completed).length;
+            const total = dayTasks.length;
+            const isTodaySec = isToday(dateStr);
+
+            return (
+              <div 
+                key={dateStr}
+                className={isTodaySec ? "border border-[var(--accent)]/20 rounded-2xl p-3 bg-[var(--accent)]/5" : ""}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] pl-1">{formatDayLabel(dateStr)}</h3>
+                    {isTodaySec && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-[var(--accent)]/10 text-[var(--accent)] uppercase tracking-wider">
+                        Today
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-[var(--text-muted)]">
+                      {done}/{total}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setTitle("");
+                        setTaskDate(dateStr);
+                        setEditingTask(null);
+                        openSheet("task");
+                      }}
+                      className="w-6 h-6 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-all"
+                    >
+                      <Plus size={12} />
+                    </button>
                   </div>
                 </div>
-                {isExpanded ? <ChevronUp size={16} className="text-[var(--text-muted)]" /> : <ChevronDown size={16} className="text-[var(--text-muted)]" />}
+                {renderTaskList(dayTasks)}
               </div>
-
-              {isExpanded && (
-                <div className="flex flex-col gap-3 mt-4 pt-3 border-t border-[var(--border)] animate-in fade-in slide-in-from-top-2">
-                  {goal.description && <p className="text-sm text-[var(--text-secondary)]">{goal.description}</p>}
-                  {ms.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      {ms.map((m: any, i: number) => (
-                        <button key={i} onClick={() => handleToggleMilestone(goal._id, ms, i)}
-                          className="flex items-center gap-2.5 text-left group">
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${m.completed ? "bg-[var(--accent-green)] border-[var(--accent-green)] text-white" : "border-[var(--border-hover)] group-hover:border-[var(--accent)]"}`}>
-                            {m.completed && <Check size={12} strokeWidth={3} />}
-                          </div>
-                          <span className={`text-sm ${m.completed ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)]"}`}>{m.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
-          );
-        })
+            );
+          })}
+        </div>
       )}
 
-      {/* Completed Goals */}
-      {completedGoals.length > 0 && (
-        <section>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Completed</h2>
-          {completedGoals.map((g: any) => (
-            <Card key={g._id} className="p-3 opacity-60">
-              <h4 className="text-sm font-bold text-[var(--text-primary)] line-through">{g.title}</h4>
-            </Card>
-          ))}
-        </section>
+      {undoTask && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[var(--text-primary)] text-[var(--bg-primary)] px-4 py-2.5 rounded-full text-sm font-bold flex items-center gap-3 shadow-lg z-50 animate-in slide-in-from-bottom-4">
+          <span>Task deleted</span>
+          <button onClick={handleUndo} className="text-[var(--accent)] hover:underline">Undo</button>
+        </div>
       )}
 
-      {/* Add Goal Sheet */}
-      <BottomSheet isOpen={activeSheet === "goal"} onClose={closeSheet}>
+      {/* Add / Edit Goal (Task) Sheet */}
+      <BottomSheet isOpen={activeSheet === "task"} onClose={() => {
+        closeSheet();
+        setEditingTask(null);
+        setTitle("");
+      }}>
         <div className="flex flex-col gap-5 pb-4">
-          <h2 className="text-xl font-bold text-[var(--text-primary)]">New Goal</h2>
-          <form onSubmit={handleCreate} className="flex flex-col gap-4">
-            <Input label="Goal Title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Run a marathon" required />
-            <Input label="Description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Why this matters..." />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none">
-                <option value="personal">Personal</option>
-                <option value="finance">Finance</option>
-                <option value="health">Health</option>
-                <option value="career">Career</option>
-                <option value="learning">Learning</option>
-              </select>
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">
+            {editingTask ? "Edit Task" : "New Task"}
+          </h2>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <Input 
+              label="Task" 
+              value={title} 
+              onChange={e => setTitle(e.target.value)} 
+              placeholder="e.g. Review budget spreadsheet" 
+              required 
+              autoFocus 
+            />
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                Date
+              </label>
+              <input
+                type="date"
+                value={taskDate}
+                onChange={e => setTaskDate(e.target.value)}
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+              />
+              
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setTaskDate(todayStr)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-full transition-colors ${
+                    taskDate === todayStr
+                      ? "bg-[var(--accent)] text-white"
+                      : "bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskDate(format(addDays(new Date(), 1), "yyyy-MM-dd"))}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-full transition-colors ${
+                    taskDate === format(addDays(new Date(), 1), "yyyy-MM-dd")
+                      ? "bg-[var(--accent)] text-white"
+                      : "bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+                {(() => {
+                  const mndyStr = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+                  const currentIsPastMonday = mndyStr < todayStr;
+                  const targetMondayStr = currentIsPastMonday
+                    ? format(addDays(parseISO(mndyStr), 7), "yyyy-MM-dd")
+                    : mndyStr;
+                  
+                  if (todayStr === targetMondayStr) return null; // already today
+                  
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setTaskDate(targetMondayStr)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-full transition-colors ${
+                        taskDate === targetMondayStr
+                          ? "bg-[var(--accent)] text-white"
+                          : "bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      {currentIsPastMonday ? "Next Monday" : "This Monday"}
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
-            <Button type="submit" isLoading={creating} className="w-full">Create Goal</Button>
+
+            <Button type="submit" isLoading={saving} className="w-full mt-2">
+              {editingTask ? "Save Changes" : "Add Task"}
+            </Button>
           </form>
         </div>
       </BottomSheet>

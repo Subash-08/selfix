@@ -14,6 +14,7 @@ export type SheetType =
   | 'activity'
   | 'journal'
   | 'goal'
+  | 'task'
   | 'health'
   | 'health-water'
   | 'health-sleep'

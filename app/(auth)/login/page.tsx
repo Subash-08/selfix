@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -15,10 +15,17 @@ export default function LoginPage() {
   const router = useRouter();
   const addToast = useUIStore((s) => s.addToast);
 
+  useEffect(() => {
+    getSession().then((session) => {
+      if (session) {
+        router.push("/dashboard");
+      }
+    });
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
     const res = await signIn("credentials", {
       email,
       password,

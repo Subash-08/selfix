@@ -14,16 +14,16 @@ const MODE_TEMPLATES: Record<string, string> = {
   expand: `Expand the following journal into a detailed, emotionally rich reflection.
 Preserve the user's voice. Do not add fictional events or details.
 Write in first person. Make it feel personal and authentic.
-Target: 300–500 words.`,
+Target: 100–200 words. don't use complex word, use only simple words`,
 
   rewrite: `Rewrite this journal clearly and coherently while keeping the original meaning.
 Remove redundancy. Improve flow. Keep it natural and conversational.
 Preserve the user's tone and intent. Do not add new information.
-Target: Similar length to the original.`,
+Target: Similar length to the original. don't use complex word, use only simple words`,
 
   summarize: `Summarize this journal entry concisely.
-Capture the key events, emotions, and reflections in 2–4 sentences.
-Be clear and direct. No fluff.`,
+Capture the key events, emotions,q and reflections in 2–4 sentences.
+Be clear and direct. No fluff. don't use complex word, use only simple words`,
 
   insights: `Analyze this journal entry and provide structured insights.
 You MUST respond in this exact JSON format (no markdown, no code blocks):
@@ -32,7 +32,7 @@ You MUST respond in this exact JSON format (no markdown, no code blocks):
   "patterns": "Key behavioral or emotional patterns observed",
   "suggestions": "1-2 actionable, specific suggestions for improvement"
 }
-Be concise, honest, and actionable. Do not sugarcoat.`,
+Be concise, honest, and actionable. Do not sugarcoat. don't use complex word, use only simple words`,
 };
 
 const TONE_INSTRUCTIONS: Record<string, string> = {
@@ -88,9 +88,9 @@ export async function POST(req: Request) {
 
     // Determine which model to use (only user key allowed)
     if (!userKey) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Personal API Key required. Please go to Settings → AI & Journal and add your Gemini API Key to use this feature." 
+      return NextResponse.json({
+        success: false,
+        error: "Personal API Key required. Please go to Settings → AI & Journal and add your Gemini API Key to use this feature."
       }, { status: 400 });
     }
     const model = getModel(userKey);
@@ -105,8 +105,8 @@ export async function POST(req: Request) {
 
     const historyContext = recentEntries.length > 0
       ? recentEntries.map((e: any) =>
-          `[${format(new Date(e.date), "MMM d")}] Mood: ${e.mood}/5 — ${smartTruncate(e.rawNotes || "", 200)}`
-        ).join("\n")
+        `[${format(new Date(e.date), "MMM d")}] Mood: ${e.mood}/5 — ${smartTruncate(e.rawNotes || "", 200)}`
+      ).join("\n")
       : "";
 
     // Build the prompt
