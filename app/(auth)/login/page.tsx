@@ -15,10 +15,20 @@ export default function LoginPage() {
   const router = useRouter();
   const addToast = useUIStore((s) => s.addToast);
 
+  // Helper to safely get the callback URL from search parameters
+  const getCallbackUrl = () => {
+    if (typeof window === "undefined") return "/dashboard";
+    const urlParams = new URLSearchParams(window.location.search);
+    const callbackUrl = urlParams.get("callbackUrl");
+    // Ensure it's a relative path to prevent open redirects
+    return callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/dashboard";
+  };
+
   useEffect(() => {
+    // Check if user is already logged in
     getSession().then((session) => {
       if (session) {
-        router.push("/dashboard");
+        router.push(getCallbackUrl());
       }
     });
   }, [router]);
@@ -26,23 +36,32 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
     
-    setIsLoading(false);
-    
-    if (res?.error) {
-      addToast({ message: res.error, type: "error" });
-    } else {
-      router.push("/dashboard");
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      
+      if (res?.error) {
+        addToast({ message: res.error, type: "error" });
+      } else if (res?.ok) {
+        // Must refresh to wipe out any cached state for server components
+        router.refresh();
+        router.push(getCallbackUrl());
+      } else {
+        addToast({ message: "Login failed. Please try again.", type: "error" });
+      }
+    } catch (err) {
+      addToast({ message: "An unexpected error occurred", type: "error" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleGoogle = () => {
-    signIn("google", { callbackUrl: "/dashboard" });
+    signIn("google", { callbackUrl: getCallbackUrl() });
   };
 
   return (
