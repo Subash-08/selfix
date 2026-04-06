@@ -16,7 +16,7 @@ const ROUTE_MAP: Record<string, { sheet: SheetType; Icon: typeof Plus }> = {
   "/dashboard": { sheet: "money", Icon: Plus },
 };
 
-const HIDDEN_PATHS = ["/", "/login", "/signup", "/settings", "/analytics", "/money", "/habits", "tasks"];
+const HIDDEN_PATHS = ["/", "/login", "/signup", "/settings", "/analytics"];
 
 export function FAB() {
   const pathname = usePathname();

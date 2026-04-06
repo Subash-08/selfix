@@ -13,7 +13,7 @@ import { OpeningBalanceCard } from "@/components/money/OpeningBalanceCard";
 import { ClosingBalanceCard } from "@/components/money/ClosingBalanceCard";
 import { TallyRow } from "@/components/money/TallyRow";
 import { BudgetSection } from "@/components/money/BudgetSection";
-import { TransactionGroup, groupEntriesByTime } from "@/components/money/TransactionGroup";
+import { EntryCard } from "@/components/money/EntryCard";
 import { QuickAddStrip } from "@/components/money/QuickAddStrip";
 import { AddMoneySheet } from "@/components/money/AddMoneySheet";
 import { useUIStore } from "@/store/uiStore";
@@ -60,8 +60,6 @@ export default function MoneyPage() {
     : entries.filter((e) => e.type === "expense" && e.paymentMode === filter);
 
   const incomeEntries = entries.filter((e) => e.type === "income");
-  const timeGroups = groupEntriesByTime(filteredEntries);
-  const incomeGroups = groupEntriesByTime(incomeEntries);
 
   // ─── Balance handlers ────────────────────────────────────────
   const saveBalance = useCallback(async (field: string, value: number) => {
@@ -317,12 +315,11 @@ export default function MoneyPage() {
             subtitle="Use the + button to add an expense."
           />
         ) : (
-          <div className="flex flex-col gap-4">
-            {Object.entries(timeGroups).map(([label, groupEntries]) => (
-              <TransactionGroup
-                key={label}
-                label={label}
-                entries={groupEntries}
+          <div className="flex flex-col gap-1.5">
+            {filteredEntries.map((entry) => (
+              <EntryCard
+                key={entry._id}
+                entry={entry}
                 onDelete={handleDelete}
                 onEdit={handleEdit}
               />
@@ -338,12 +335,11 @@ export default function MoneyPage() {
             <IndianRupee size={14} />
             INCOME — {format(selectedDate, "MMM d")}
           </h2>
-          <div className="flex flex-col gap-4">
-            {Object.entries(incomeGroups).map(([label, groupEntries]) => (
-              <TransactionGroup
-                key={label}
-                label={label}
-                entries={groupEntries}
+          <div className="flex flex-col gap-1.5">
+            {incomeEntries.map((entry) => (
+              <EntryCard
+                key={entry._id}
+                entry={entry}
                 onDelete={handleDelete}
                 onEdit={handleEdit}
               />
