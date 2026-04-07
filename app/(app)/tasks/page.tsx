@@ -23,10 +23,10 @@ export default function TasksPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tab, setTab] = useState<"today" | "schedule" | "reports">("today");
   const [showAddSheet, setShowAddSheet] = useState(false);
-  
+
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [applyTemplateState, setApplyTemplateState] = useState<{isOpen: boolean, targetDate: string} | null>(null);
-  
+  const [applyTemplateState, setApplyTemplateState] = useState<{ isOpen: boolean, targetDate: string } | null>(null);
+
   const dateStr = format(selectedDate, "yyyy-MM-dd");
   const { data, error, isLoading, mutate } = useSWR(`/api/task-instances?date=${dateStr}`, fetcher);
   const { addToast } = useUIStore();
@@ -41,7 +41,7 @@ export default function TasksPage() {
   const scheduleEnd = format(addDays(selectedDate, 7 - (selectedDate.getDay() || 7)), "yyyy-MM-dd");
   const { data: scheduleData } = useSWR(tab === 'schedule' ? `/api/task-instances?start=${scheduleStart}&end=${scheduleEnd}` : null, fetcher);
   const weeklyInstances = scheduleData?.data || [];
-  
+
   const rawInstances = data?.data || [];
 
   const instances = useMemo(() => {
@@ -145,11 +145,10 @@ export default function TasksPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2 text-[11px] font-extrabold rounded-lg capitalize tracking-wider transition-colors whitespace-nowrap ${
-                tab === t
+              className={`px-4 py-2 text-[11px] font-extrabold rounded-lg capitalize tracking-wider transition-colors whitespace-nowrap ${tab === t
                   ? "bg-[var(--accent)] text-white shadow-md"
                   : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)]"
-              }`}
+                }`}
             >
               {t}
             </button>
@@ -164,11 +163,11 @@ export default function TasksPage() {
         <div className="flex flex-col gap-3">
           {activeInstances.length > 0 && <TodayAnalytics instances={activeInstances} />}
 
-          {isOverloaded && (
+          {/* {isOverloaded && (
             <div className="flex items-center gap-2 p-3 bg-[var(--accent-red)]/10 text-[var(--accent-red)] rounded-xl text-xs font-bold mb-2 mt-2">
                <AlertTriangle size={16} /> You planned {Math.floor(totalDuration/60)}h — unrealistic? Consider scoping down.
             </div>
-          )}
+          )} */}
 
           {activeInstances.length > 0 && (
             <div className="flex items-center justify-between mt-2 px-1">
@@ -178,42 +177,42 @@ export default function TasksPage() {
 
           {activeInstances.length === 0 ? (
             <div className="flex flex-col flex-1 items-center justify-center p-10 bg-[var(--bg-elevated)] rounded-2xl border border-[var(--border)] border-dashed gap-6">
-               <div className="text-center">
-                 <p className="text-[var(--text-primary)] font-extrabold text-lg">Start Your Day</p>
-                 <p className="text-[var(--text-muted)] font-bold text-sm mt-1">Apply a template or continue yesterday.</p>
-               </div>
-               <div className="flex flex-col w-full gap-3">
-                 <button onClick={() => setApplyTemplateState({ isOpen: true, targetDate: dateStr })} className="flex items-center justify-center w-full gap-2 px-4 py-4 bg-[var(--accent)] text-white rounded-xl font-black shadow-sm active:scale-95 transition-all text-sm">
-                   Apply Template
-                 </button>
-                 <button onClick={() => copyYesterday(dateStr)} className="flex items-center justify-center w-full gap-2 px-4 py-3 bg-[var(--bg-card)] rounded-xl font-bold shadow-sm border border-[var(--border)] active:scale-95 transition-all text-sm">
-                   <Copy size={16} /> Copy Yesterday
-                 </button>
-                 <button onClick={() => setShowAddSheet(true)} className="flex items-center justify-center w-full gap-2 px-4 py-3 bg-[var(--bg-card)] rounded-xl font-bold border border-[var(--border)] shadow-sm active:scale-95 transition-all text-sm">
-                   <Plus size={16} /> Create Custom Task
-                 </button>
-               </div>
+              <div className="text-center">
+                <p className="text-[var(--text-primary)] font-extrabold text-lg">Start Your Day</p>
+                <p className="text-[var(--text-muted)] font-bold text-sm mt-1">Apply a template or continue yesterday.</p>
+              </div>
+              <div className="flex flex-col w-full gap-3">
+                <button onClick={() => setApplyTemplateState({ isOpen: true, targetDate: dateStr })} className="flex items-center justify-center w-full gap-2 px-4 py-4 bg-[var(--accent)] text-white rounded-xl font-black shadow-sm active:scale-95 transition-all text-sm">
+                  Apply Template
+                </button>
+                <button onClick={() => copyYesterday(dateStr)} className="flex items-center justify-center w-full gap-2 px-4 py-3 bg-[var(--bg-card)] rounded-xl font-bold shadow-sm border border-[var(--border)] active:scale-95 transition-all text-sm">
+                  <Copy size={16} /> Copy Yesterday
+                </button>
+                <button onClick={() => setShowAddSheet(true)} className="flex items-center justify-center w-full gap-2 px-4 py-3 bg-[var(--bg-card)] rounded-xl font-bold border border-[var(--border)] shadow-sm active:scale-95 transition-all text-sm">
+                  <Plus size={16} /> Create Custom Task
+                </button>
+              </div>
             </div>
           ) : (
-             <>
-                {displayedInstances.map((inst: any) => (
-                  <TaskCard 
-                    key={inst._id} 
-                    instance={inst} 
-                    onLogTime={handleLogTime}
-                    onStateUpdate={handleStateUpdate}
-                    onEdit={setEditInstance}
-                    onDelete={async (id) => await mutate()}
-                  />
-                ))}
-                
-                <button 
-                  onClick={() => setShowSaveTemplate(true)}
-                  className="mt-6 flex items-center justify-center gap-2 p-4 border border-[var(--accent)]/30 text-[var(--accent)] bg-[var(--accent)]/5 rounded-2xl font-bold hover:bg-[var(--accent)]/10 transition-colors"
-                >
-                  <BookmarkPlus size={18} /> Save Day as Template
-                </button>
-             </>
+            <>
+              {displayedInstances.map((inst: any) => (
+                <TaskCard
+                  key={inst._id}
+                  instance={inst}
+                  onLogTime={handleLogTime}
+                  onStateUpdate={handleStateUpdate}
+                  onEdit={setEditInstance}
+                  onDelete={async (id) => await mutate()}
+                />
+              ))}
+
+              <button
+                onClick={() => setShowSaveTemplate(true)}
+                className="mt-6 flex items-center justify-center gap-2 p-4 border border-[var(--accent)]/30 text-[var(--accent)] bg-[var(--accent)]/5 rounded-2xl font-bold hover:bg-[var(--accent)]/10 transition-colors"
+              >
+                <BookmarkPlus size={18} /> Save Day as Template
+              </button>
+            </>
           )}
         </div>
       )}
@@ -224,12 +223,12 @@ export default function TasksPage() {
             <h2 className="text-lg font-bold">Weekly Planner</h2>
           </div>
           <div className="flex flex-col gap-3">
-            {[0,1,2,3,4,5,6].map(i => {
+            {[0, 1, 2, 3, 4, 5, 6].map(i => {
               const d = new Date(selectedDate);
               d.setDate(d.getDate() - (d.getDay() === 0 ? 7 : d.getDay()) + 1 + i); // Mon-Sun
               const dStr = format(d, "yyyy-MM-dd");
               const isToday = dStr === dateStr;
-              
+
               const dayInstances = weeklyInstances.filter((inst: any) => inst.date === dStr);
               const templateNames = [...new Set(dayInstances.map((inst: any) => inst.templateName).filter(Boolean))];
               const templateLabel = templateNames.length > 0 ? templateNames.join(', ') : (dayInstances.length > 0 ? 'Custom' : 'Empty');
@@ -238,21 +237,21 @@ export default function TasksPage() {
                 <div key={i} className={`flex flex-col gap-3 p-4 border rounded-2xl ${isToday ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-[var(--border)] bg-[var(--bg-elevated)]'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                       <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] tracking-widest">{format(d, "EEEE")}</span>
-                       <span className={`text-base font-extrabold ${isToday ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>{format(d, "MMM d")}</span>
-                       {dayInstances.length > 0 && (
-                         <div className="flex items-center gap-2 mt-1">
-                           <span className="text-[10px] bg-[var(--bg-card)] border px-1.5 py-0.5 rounded text-[var(--text-muted)]">{dayInstances.length} Tasks</span>
-                           <span className="text-[10px] text-[var(--text-muted)] truncate max-w-[100px]">{templateLabel}</span>
-                         </div>
-                       )}
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] tracking-widest">{format(d, "EEEE")}</span>
+                      <span className={`text-base font-extrabold ${isToday ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>{format(d, "MMM d")}</span>
+                      {dayInstances.length > 0 && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] bg-[var(--bg-card)] border px-1.5 py-0.5 rounded text-[var(--text-muted)]">{dayInstances.length} Tasks</span>
+                          <span className="text-[10px] text-[var(--text-muted)] truncate max-w-[100px]">{templateLabel}</span>
+                        </div>
+                      )}
                     </div>
                     <button onClick={() => { setSelectedDate(d); setTab('today'); }} className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-bold shadow-sm active:scale-95 text-[var(--text-primary)]">Edit Day</button>
                   </div>
-                  
+
                   <div className="flex gap-2">
-                    <button onClick={() => setApplyTemplateState({isOpen: true, targetDate: dStr})} className="flex-1 py-3 bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl text-xs font-bold shadow-sm active:scale-95">Apply Template</button>
-                     <button onClick={() => copyYesterday(dStr)} className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-bold shadow-sm active:scale-95 flex items-center gap-1"><Copy size={12}/> Copy Prev</button>
+                    <button onClick={() => setApplyTemplateState({ isOpen: true, targetDate: dStr })} className="flex-1 py-3 bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl text-xs font-bold shadow-sm active:scale-95">Apply Template</button>
+                    <button onClick={() => copyYesterday(dStr)} className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-bold shadow-sm active:scale-95 flex items-center gap-1"><Copy size={12} /> Copy Prev</button>
                   </div>
                 </div>
               );

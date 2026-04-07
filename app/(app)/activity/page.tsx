@@ -109,7 +109,8 @@ export default function ActivityPage() {
   // ─── Duration Preview & Overlap ──────────────────────────────
   const durationPreview = useMemo(() => {
     if (!actStart || !actEnd) return null;
-    if (actEnd <= actStart) return { valid: false, crossesMidnight: actEnd < actStart, mins: 0 };
+    if (actEnd === actStart) return { valid: false, crossesMidnight: false, mins: 0 };
+    if (actEnd < actStart) return { valid: true, crossesMidnight: true, mins: calcDuration(actStart, actEnd) };
     return { valid: true, crossesMidnight: false, mins: calcDuration(actStart, actEnd) };
   }, [actStart, actEnd]);
 
@@ -117,6 +118,10 @@ export default function ActivityPage() {
     if (!actStart || !actEnd || !durationPreview?.valid) return [];
     return entries.filter(e => {
       if (sheetMode === "edit" && e._id === editingId) return false;
+      if (actEnd < actStart) {
+        return hasOverlap(actStart, "23:59", e.startTime, e.endTime) || 
+               hasOverlap("00:00", actEnd, e.startTime, e.endTime);
+      }
       return hasOverlap(actStart, actEnd, e.startTime, e.endTime);
     });
   }, [actStart, actEnd, entries, durationPreview, sheetMode, editingId]);
@@ -243,30 +248,44 @@ export default function ActivityPage() {
   const saveActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actName || !actStart || !actEnd) return addToast({ message: "Fill all fields", type: "error" });
-    if (actEnd <= actStart && actEnd >= actStart) return addToast({ message: "End must be after start", type: "error" });
+    if (actEnd === actStart) return addToast({ message: "End time must be different from start time", type: "error" });
+
+    if (overlaps.length > 0) {
+      return addToast({ message: "Time overlaps with existing activities", type: "error" });
+    }
 
     setActSaving(true);
     try {
+      const handleFetch = async (url: string, options: any) => {
+        const res = await fetch(url, options);
+        if (!res.ok) throw new Error("API request failed");
+        return res.json();
+      };
+
       // Midnight crossing: split into 2 entries
       if (actEnd < actStart) {
+        if (sheetMode === "edit" && editingId) {
+          // Delete old entry since we are splitting it into two
+          await handleFetch(`/api/activities/${editingId}`, { method: "DELETE" });
+        }
         const nextDay = format(addDays(selectedDate, 1), "yyyy-MM-dd");
-        await fetch("/api/activities", {
+        await handleFetch("/api/activities", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: actName, category: actCategory, date: dateStr, startTime: actStart, endTime: "23:59", isPlanned: false }),
         });
-        await fetch("/api/activities", {
+        await handleFetch("/api/activities", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: actName, category: actCategory, date: nextDay, startTime: "00:00", endTime: actEnd, isPlanned: false }),
         });
-        addToast({ message: "Split into 2 entries across midnight", type: "success" });
+        addToast({ message: sheetMode === "edit" ? "Updated and split across midnight" : "Split into 2 entries across midnight", type: "success" });
       } else if (sheetMode === "edit" && editingId) {
-        await fetch(`/api/activities/${editingId}`, {
+        await handleFetch(`/api/activities/${editingId}`, {
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: actName, category: actCategory, startTime: actStart, endTime: actEnd }),
         });
         addToast({ message: "Activity updated!", type: "success" });
       } else {
-        await fetch("/api/activities", {
+        await handleFetch("/api/activities", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: actName, category: actCategory, date: dateStr, startTime: actStart, endTime: actEnd, isPlanned: false }),
         });
@@ -285,7 +304,8 @@ export default function ActivityPage() {
 
   const deleteEntry = async (id: string) => {
     try {
-      await fetch(`/api/activities/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/activities/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("API request failed");
       addToast({ message: "Deleted!", type: "success" });
       setDeleteConfirm(null);
       mutate();
