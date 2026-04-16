@@ -11,36 +11,52 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Mode-specific prompt templates — real instruction blocks, not generic strings
 const MODE_TEMPLATES: Record<string, string> = {
-  expand: `Expand the following journal into a detailed, emotionally rich reflection.
-Preserve the user's voice. Do not add fictional events or details.
-Write in first person. Make it feel personal and authentic.
-Target: 100–200 words. don't use complex word, use only simple words`,
+  expand: `You are expanding a simple list of daily activities into a natural journal entry.
 
-  rewrite: `Rewrite this journal clearly and coherently while keeping the original meaning.
-Remove redundancy. Improve flow. Keep it natural and conversational.
-Preserve the user's tone and intent. Do not add new information.
-Target: Similar length to the original. don't use complex word, use only simple words`,
+The user will list their day's activities in order (like: wake up, work, lunch, movie, sleep).
+Your job is to write it out as a simple, flowing paragraph that follows the same order.
 
-  summarize: `Summarize this journal entry concisely.
-Capture the key events, emotions,q and reflections in 2–4 sentences.
-Be clear and direct. No fluff. don't use complex word, use only simple words`,
+Rules:
+- Keep the exact same order of activities as given
+- Use very simple everyday words only
+- Write like someone noting down what they did that day
+- Do not add activities that are not mentioned
+- Do not make it fancy or emotional
+- Keep it short and direct
+- Based on the mood emoji, adjust the feeling slightly (happy mood = positive tone, sad mood = flat tone, neutral mood = plain tone)
+- Length should match the number of activities (each activity = 1-2 simple sentences)
 
-  insights: `Analyze this journal entry and provide structured insights.
+Example:
+Input: "wake up, coffee, meeting, lunch, gym, dinner, sleep"
+Output: "Woke up and had coffee. Went to a meeting. Had lunch. Went to the gym. Had dinner and went to sleep."
+
+Just write what happened in plain words.`,
+
+  rewrite: `Rewrite this list of activities into a cleaner simple paragraph.
+Keep the exact same order. Use basic everyday words only.
+Make it flow better but stay very simple.
+Do not add anything new. Keep same length.`,
+
+  summarize: `Summarize the day's activities in 2-3 very short simple sentences.
+Capture only the main things done. Use plain everyday words.
+No extra details.`,
+
+  insights: `Look at this list of daily activities and give simple insights.
 You MUST respond in this exact JSON format (no markdown, no code blocks):
 {
-  "mood": "A single sentence describing the overall emotional state",
-  "patterns": "Key behavioral or emotional patterns observed",
-  "suggestions": "1-2 actionable, specific suggestions for improvement"
+  "mood": "Simple sentence about how the day seems based on activities",
+  "patterns": "One simple pattern noticed in 1 short sentence",
+  "suggestions": "One simple easy suggestion in 1 short sentence"
 }
-Be concise, honest, and actionable. Do not sugarcoat. don't use complex word, use only simple words`,
+Use only basic words. Keep each field under 10 words if possible.`,
 };
 
 const TONE_INSTRUCTIONS: Record<string, string> = {
-  reflective: "Use a reflective, introspective tone. Focus on emotional clarity and self-awareness.",
-  motivational: "Use an uplifting, energizing tone. Highlight strengths and progress. Encourage forward momentum.",
-  analytical: "Use a clear, logical tone. Focus on cause-and-effect. Be precise and structured.",
-  concise: "Use a minimal, direct tone. Every sentence must earn its place. No filler.",
-  storytelling: "Use a narrative tone. Frame the day as a story with a beginning, middle, and looking-ahead ending.",
+  reflective: "Use simple words. Write like you are just noting down what happened.",
+  motivational: "Use simple positive words. Keep it light and easy.",
+  analytical: "Use plain simple words. Just state what happened clearly.",
+  concise: "Use very few words. Be brief and simple.",
+  storytelling: "Use simple words. Tell what happened in order like a short story.",
 };
 
 function smartTruncate(text: string, maxLen: number): string {
@@ -109,7 +125,17 @@ export async function POST(req: Request) {
       ).join("\n")
       : "";
 
-    // Build the prompt
+    // Build the prompt with mood emoji instruction
+    const moodEmojiMap: Record<number, string> = {
+      1: "very sad/tired",
+      2: "somewhat down",
+      3: "neutral/okay",
+      4: "good/happy",
+      5: "great/energetic"
+    };
+
+    const moodDescription = moodEmojiMap[mood] || "neutral/okay";
+
     const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES.expand;
     const toneInstruction = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.reflective;
 
@@ -117,19 +143,21 @@ export async function POST(req: Request) {
 
 ${toneInstruction}
 
-${userStyle ? `User's personal writing style preference: "${userStyle}"` : ""}
+Important: The user's mood today is ${moodDescription}. Use this to slightly adjust the feeling of the writing.
 
---- USER'S JOURNAL INPUT ---
-Raw notes: ${smartTruncate(rawNotes || "None", 2500)}
-${wentWell ? `What went well: ${smartTruncate(wentWell, 500)}` : ""}
-${drained ? `What drained energy: ${smartTruncate(drained, 500)}` : ""}
-${tomorrow ? `Tomorrow's intention: ${smartTruncate(tomorrow, 500)}` : ""}
-Mood: ${mood || 3}/5
+${userStyle ? `User prefers: "${userStyle}"` : ""}
 
-${historyContext ? `--- RECENT CONTEXT (last few days) ---\n${historyContext}` : ""}
+--- USER'S ACTIVITY LIST (keep this exact order) ---
+${smartTruncate(rawNotes || "None", 2500)}
+${wentWell ? `Good things: ${smartTruncate(wentWell, 500)}` : ""}
+${drained ? `Hard things: ${smartTruncate(drained, 500)}` : ""}
+${tomorrow ? `Tomorrow plan: ${smartTruncate(tomorrow, 500)}` : ""}
+Mood level: ${mood || 3}/5
 
-${mode === "insights" ? "Respond ONLY with valid JSON. No markdown formatting." : "Return only the journal text, no preamble or explanation."}
-Generate a slightly different version each time this is called — vary phrasing and structure.`;
+${historyContext ? `--- LAST FEW DAYS ---\n${historyContext}` : ""}
+
+${mode === "insights" ? "Respond ONLY with valid JSON. No markdown." : "Write only the journal entry. No extra words. Follow the exact order of activities."}
+Write simply. Sound like a person noting their day.`;
 
     const result = await model.generateContent(prompt);
     const output = result.response.text().trim();

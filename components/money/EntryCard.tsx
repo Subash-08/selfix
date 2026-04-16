@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef, useCallback } from "react";
 import { Trash2, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { CategoryIcon } from "./CategoryIcon";
@@ -21,38 +20,13 @@ interface EntryCardProps {
 }
 
 export function EntryCard({ entry, onDelete, onEdit }: EntryCardProps) {
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLongPress = useRef(false);
-
   const categoryMeta = MONEY_CATEGORIES.find(
     (c) => c.id === entry.category.toLowerCase() || c.label.toLowerCase() === entry.category.toLowerCase()
   );
   const paymentMeta = PAYMENT_MODES.find((p) => p.id === entry.paymentMode);
 
-  const handleTouchStart = useCallback(() => {
-    isLongPress.current = false;
-    longPressTimer.current = setTimeout(() => {
-      isLongPress.current = true;
-      // Trigger haptic feedback if available
-      if (navigator.vibrate) navigator.vibrate(50);
-    }, 500);
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    if (isLongPress.current) {
-      onDelete(entry._id);
-      isLongPress.current = false;
-    }
-  }, [entry._id, onDelete]);
-
   const handleClick = () => {
-    if (!isLongPress.current) {
-      onEdit(entry);
-    }
+    onEdit(entry);
   };
 
   const entryTime = format(new Date(entry.date), "h:mm a");
@@ -63,11 +37,6 @@ export function EntryCard({ entry, onDelete, onEdit }: EntryCardProps) {
       role="button"
       tabIndex={0}
       onClick={handleClick}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={() => {
-        if (longPressTimer.current) clearTimeout(longPressTimer.current);
-      }}
       className="flex items-center gap-3 p-3.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl transition-transform active:scale-[0.98] cursor-pointer group"
     >
       {/* Category Icon */}
@@ -119,10 +88,10 @@ export function EntryCard({ entry, onDelete, onEdit }: EntryCardProps) {
         </div>
       </div>
 
-      {/* Desktop delete button */}
+      {/* Delete button */}
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(entry._id); }}
-        className="hidden md:flex opacity-0 group-hover:opacity-100 w-8 h-8 rounded-lg items-center justify-center text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-all flex-shrink-0"
+        className="flex md:opacity-0 md:group-hover:opacity-100 w-8 h-8 rounded-lg items-center justify-center text-[var(--accent-red)] active:bg-[var(--accent-red)]/10 md:hover:bg-[var(--accent-red)]/10 transition-all flex-shrink-0"
       >
         <Trash2 size={14} />
       </button>
